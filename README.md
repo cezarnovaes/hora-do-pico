@@ -1,23 +1,34 @@
 # Hora do Pico
 
-Simulador interativo de filas para testar mudanças em uma operação. Monte um turno, acompanhe onde os pedidos esperam e compare duas configurações usando os mesmos pedidos.
+[![Validação](https://github.com/cezarnovaes/hora-do-pico/actions/workflows/ci.yml/badge.svg)](https://github.com/cezarnovaes/hora-do-pico/actions/workflows/ci.yml)
+
+Simulador interativo de filas para testar mudanças em uma operação. Se os pedidos acumulam no horário do almoço, vale colocar mais uma pessoa no caixa ou no preparo? Monte um turno e compare o efeito de cada mudança usando a mesma sequência de pedidos.
 
 ![Painel da cafeteria no minuto 38 de um turno simulado](docs/imagens/simulacao.png)
 
 [Comparação de cenários](docs/imagens/comparacao.png) · [Interface no celular](docs/imagens/celular.png) · [Roteiro de apresentação](docs/apresentacao.md)
 
+## Funcionalidades
+
+- **Acompanhe a operação.** Reproduza o turno, pause ou mova a linha do tempo para ver quantos pedidos aguardam e quantas pessoas estão ocupadas em cada etapa.
+- **Monte seu cenário.** Comece pela cafeteria, pelo food truck ou pela cantina. Ajuste chegadas, capacidade, tempo de atendimento e ordem das etapas.
+- **Compare alternativas.** Fixe uma referência e veja as diferenças de tempo, fila e meta de entrega. O gráfico sobrepõe a evolução das duas filas minuto a minuto.
+- **Exporte os resultados.** O CSV traz uma linha por passagem de um pedido por uma etapa, com os horários e a espera em segundos.
+
 ## Rodar na sua máquina
 
-Use Node.js 24 e npm. Na pasta do repositório, execute os comandos abaixo e abra o endereço local informado pelo Vite.
+Com Node.js 24 e npm instalados, execute os comandos abaixo.
 
 ```sh
+git clone https://github.com/cezarnovaes/hora-do-pico.git
+cd hora-do-pico
 npm ci
 npm run dev
 ```
 
-O endereço padrão é `http://127.0.0.1:5173`. No PowerShell, use `npm.cmd` se a execução de `npm.ps1` estiver bloqueada. Para servir o build de produção localmente, use `npm run build` e `npm run preview`.
+Abra [http://127.0.0.1:5173](http://127.0.0.1:5173). No PowerShell, use `npm.cmd` se a execução de `npm.ps1` estiver bloqueada.
 
-## Experimento de dois minutos
+## Teste uma mudança em dois minutos
 
 1. Abra **Café da Estação**. Inicie a reprodução ou arraste a linha do tempo até **38:00** para encontrar a fila de nove pedidos no preparo.
 2. Em **Comparar**, clique em **Fixar cenário atual**.
@@ -31,8 +42,6 @@ O endereço padrão é `http://127.0.0.1:5173`. No PowerShell, use `npm.cmd` se 
 | Maior fila simultânea | 9 | 6 |
 | Pedidos entregues em até 10 min | 25/37 (67,6%) | 37/37 (100%) |
 
-Você também pode experimentar o food truck ou a cantina, alterar a demanda, trocar a disciplina da fila e editar até seis etapas. O CSV traz uma linha por passagem de pedido por etapa, com tempos em segundos. Use `;` como separador se seu leitor de planilhas pedir.
-
 ## Como a simulação funciona
 
 - **Chegadas.** O motor sorteia uma possível chegada a cada segundo antes do fechamento. O perfil distribui a intensidade ao longo do turno. Pedidos por hora define a taxa esperada e o total de pedidos realizado varia com a semente.
@@ -43,19 +52,32 @@ Você também pode experimentar o food truck ou a cantina, alterar a demanda, tr
 
 O modelo usa dados sintéticos, rotas lineares e capacidade fixa durante cada turno. Os resultados descrevem a simulação. Para extrapolar para uma operação real, é preciso medir chegadas e atendimento e calibrar o modelo.
 
-## Código e validação
+## Arquitetura
+
+A aplicação roda no navegador. O motor em JavaScript calcula o turno completo, a interface reproduz a linha do tempo e o Vite gera o build estático. As configurações aplicadas e a referência ficam salvas no navegador.
+
+```mermaid
+flowchart LR
+  A["Configuração do turno e semente"] --> B["Motor de eventos discretos"]
+  B --> C["Linha do tempo e filas"]
+  B --> D["Indicadores e comparação"]
+  B --> E["Exportação CSV"]
+```
 
 - [`src/simulation.js`](src/simulation.js) contém o motor de eventos discretos. Ele roda também no Node e é independente da interface.
 - [`src/scenarios.js`](src/scenarios.js) contém os dados de demonstração e valida os limites de entrada.
 - [`src/app.js`](src/app.js), [`src/views.js`](src/views.js) e [`src/chart.js`](src/chart.js) ligam o editor, o player, as métricas e a comparação ao navegador.
-- [`src/storage.js`](src/storage.js) usa armazenamento local por navegador e endereço. A aplicação roda sem backend, conta ou API externa.
+- [`src/storage.js`](src/storage.js) salva as configurações localmente, sem conta ou API externa.
+
+## Testes e build
 
 ```sh
 npm test
 npm run build
 npx playwright install chromium firefox
 npm run test:e2e
-npm run screenshots
 ```
 
-Em Linux, use `npx playwright install --with-deps chromium firefox` para instalar também as dependências do sistema. O [workflow do GitHub Actions](.github/workflows/ci.yml) roda os testes do motor e as jornadas do navegador contra o build de produção. As verificações automatizadas de acessibilidade cobrem simulação, guia e comparação.
+O [GitHub Actions](.github/workflows/ci.yml) executa os testes do motor e as jornadas em Chromium e Firefox contra o build de produção. As verificações automatizadas de acessibilidade cobrem simulação, guia e comparação. Em Linux, acrescente `--with-deps` ao comando de instalação dos navegadores para incluir as dependências do sistema.
+
+Depois do build, use `npm run preview` para conferir a versão de produção localmente ou `npm run screenshots` para reproduzir as capturas.
